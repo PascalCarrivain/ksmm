@@ -1,0 +1,33 @@
+# see https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+[build-system]
+requires = ["setuptools", "setuptools-scm", "torch", "numpy", "pandas", "einops", "pyJoules"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ksmm"
+version= "1"
+authors = [
+    {name = "Pascal Carrivain", email = "pascal.carrivain@inria.fr"},
+    {name = "Antoine Gonon", email = "antoine.gonon@ens-lyon.fr"},
+    {name = "Léon Zheng", email = "leon.zheng@ens-lyon.fr"},
+    {name = "Quoc-Tung Le", email = "quoc-tung.le@tse-fr.eu"},
+]
+description = "Fast Implementation of Kronecker-sparse Matrix Multiplication"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "BSD-3-Clause"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+	     "einops>=0.8",
+	     "numpy>=2.1",
+	     "packaging>=24.1",
+	     "pandas>=2.2",
+	     "torch>=2.4",
+         "pyJoules"
+]
+
+[project.optional-dependencies]
+pdf = []
+rest = []

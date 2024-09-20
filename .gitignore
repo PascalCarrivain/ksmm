@@ -1,0 +1,10 @@
+
+*.pyc
+*.txt
+PKG-INFO
+__pycache__/
+.vscode/
+*~
+*.log
+build/*
+*.out
