@@ -229,7 +229,7 @@ To customize the benchmark configurations, edit `scripts/0_benchmark_ksmm_time.s
 
 ## References
 
-- [GZCT24]<a name="GZCT24"></a> Antoine Gonon, Léon Zheng, Pascal Carrivain, Quoc-Tung Le. [*Make Inference Faster: Efficient GPU Memory Management for Butterfly Sparse Matrix Multiplication.*](https://arxiv.org/abs/2405.15013) CoRR abs/2405.15013 (2024)
+- [GZCT24]<a name="GZCT24"></a> Antoine Gonon, Léon Zheng, Pascal Carrivain, Quoc-Tung Le. [*Fast inference with Kronecker-sparse matrices.*](https://arxiv.org/abs/2405.15013) CoRR abs/2405.15013 (2024)
 - [Monarch]<a name="monarch"></a> Tri Dao, Beidi Chen, Nimit Sharad Sohoni, Arjun D. Desai, Michael Poli, Jessica Grogan, Alexander Liu, Aniruddh Rao, Atri Rudra, Christopher Ré. [*Monarch: Expressive Structured Matrices for Efficient and Accurate Training.*](https://arxiv.org/abs/2204.00595) ICML 2022: 4690-4721
 
 ---
@@ -241,7 +241,7 @@ If you use this codebase or otherwise found our work valuable, please consider c
 ```bibtex
 @article{GZCT24,
   author    = {Antoine Gonon and L\'eon Zheng and Pascal Carrivain and Quoc-Tung Le},
-  title     = {Make Inference Faster: Efficient GPU Memory Management for Butterfly Sparse Matrix Multiplication},
+  title     = {Fast inference with Kronecker-sparse matrices},
   journal   = {CoRR},
   volume    = {abs/2405.15013},
   year      = {2024},
