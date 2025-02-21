@@ -158,6 +158,8 @@ class KSLinear(nn.Module):
         self.bs_last = bs_last
         self.weights=weights
         self.device = device
+        if self.device == 'cpu' and self.algo == 'kernel':
+            raise Exception("kernel expects device='cuda'.")
         parameters = []
 
         if self.weights is None:

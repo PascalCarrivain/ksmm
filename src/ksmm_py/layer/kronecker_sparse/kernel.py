@@ -11,9 +11,11 @@ filename = inspect.getframeinfo(inspect.currentframe()).filename
 directory = os.path.dirname(os.path.abspath(filename))
 path = directory + "/kernel"
 
-if not os.path.isdir("build"):
-    warn("Did not find build folder." +
-         "\nPlease create build folder at the root of fast-butterfly folder.")
+if not os.path.exists("build/"):
+    os.makedirs("build/")
+    warn("Created 'build/' directory to store compilation files for the kernel.", UserWarning)
+
+print("------------------------------------Compiling the kernel...(this may take a few minutes the first time)------------------------------------")
 
 kernel = load(
     name="kernel",
@@ -22,6 +24,8 @@ kernel = load(
     extra_cflags=["-g"],
     build_directory="build/",
 )
+
+print("------------------------------------Kernel compiled------------------------------------")
 
 
 class Kernel(torch.autograd.Function):
