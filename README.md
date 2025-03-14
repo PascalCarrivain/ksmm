@@ -37,7 +37,7 @@ patterns = [(6, 64, 64, 1), (1, 768, 192, 2)] # [(a_2, b_2, c_2, d_2), (a_1, b_1
 dim_in = 6 * 64 * 1 # a_2 * b_2 * d_2
 batch_size = 25088 # support for other batch-sizes is in progress; for now we finetuned the hyperparameters of our kernel only for 25'088= 196 (ctx length) * 128 (batch size) = effective ViT batch size
 batch_size_last = True # True or False, whether the batch size is the last or the first dimension of the input and output tensors
-device='cpu' # 'cuda' or 'cpu', the kernel is only available on GPU
+device='cuda' # 'cuda' or 'cpu', the kernel is only available on GPU
 
 x = torch.randn((dim_in, batch_size) if batch_size_last else (batch_size, dim_in), 
                 dtype=torch.float32, # torch.float16 is fine too
