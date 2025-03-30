@@ -3,7 +3,7 @@ import torch
 
 # Two factors W = K_1 K_2
 patterns = [(6, 64, 64, 1), (1, 768, 192, 2)] # [(a_2, b_2, c_2, d_2), (a_1, b_1, c_1, d_1)], and in general for W = K_1 \dots K_L, patterns[0] should correspond to K_L (right-most factor), patterns[1] to K_{L-1}, ..., patterns[-1] to K_1 (left-most factor)
-dim_in = 6 * 64 * 1 # a_2 * b_2 * d_2
+dim_in = patterns[0][0] * patterns[0][2] * patterns[0][3] # a_2 * c_2 * d_2
 batch_size = 25088 # support for other batch-sizes is in progress; for now we finetuned the hyperparameters of our kernel only for 25'088= 196 (ctx length) * 128 (batch size) = effective ViT batch size
 batch_size_last = True # True or False, whether the batch size is the last or the first dimension of the input and output tensors
 device='cpu' # 'cuda' or 'cpu', the kernel is only available on GPU
