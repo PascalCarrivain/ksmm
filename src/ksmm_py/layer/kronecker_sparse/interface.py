@@ -69,7 +69,7 @@ def generate_factor(a, b, c, d, algo, weights=None,
             factor = weights.permute(0, 3, 2, 1).reshape(a * d * c, b)
     else:
         raise NotImplementedError
-    return factor.to(dtype).to(device)
+    return factor.to(dtype).to(device).contiguous()
 
 
 def from_kernel_format_to_dense(factor, pattern):
@@ -130,6 +130,7 @@ class KSLinear(nn.Module):
         algo="dense",
         dtype: torch.dtype = torch.float16,
         bs_last: bool = False,
+        vsize: int = 4,
         device: str = 'cpu'
     ):
         """
@@ -156,6 +157,7 @@ class KSLinear(nn.Module):
         self.patterns = patterns
         self.dtype = dtype
         self.bs_last = bs_last
+        self.vsize = vsize
         self.weights=weights
         self.device = device
         if self.device == 'cpu' and self.algo == 'kernel':
@@ -180,11 +182,11 @@ class KSLinear(nn.Module):
             if self.bs_last is False:
                 # bs first
                 bias_shape = (self.out_size,)
-                self.bias = nn.Parameter(torch.empty(*bias_shape, dtype=dtype, device=device).uniform_(-bound, bound))
+                self.bias = nn.Parameter(torch.empty(*bias_shape, device=device).uniform_(-bound, bound).to(dtype)) # do not create with dtype=dtype since .uniform() not implemented for dtype=torch.float8_e4m3fn
             else:
                 # bs last
                 bias_shape = (self.out_size, 1)
-                self.bias = nn.Parameter(torch.empty(*bias_shape, dtype=dtype, device=device).uniform_(-bound, bound))
+                self.bias = nn.Parameter(torch.empty(*bias_shape, device=device).uniform_(-bound, bound).to(dtype))
         else:
             self.register_parameter("bias", None)
 
@@ -203,7 +205,9 @@ class KSLinear(nn.Module):
                         b,
                         c,
                         d,
-                        fp16=self.dtype == torch.float16 or self.dtype == torch.half,
+                        # fp16=self.dtype == torch.float16 or self.dtype == torch.half,
+                        dtype=self.dtype,
+                        vsize=self.vsize
                     )
                 elif self.algo == "sparse":
                     output = F.linear(output, factor)
@@ -281,7 +285,9 @@ class KSLinear(nn.Module):
                     b,
                     c,
                     d,
-                    fp16=self.dtype == torch.float16 or self.dtype == torch.half,
+                    # fp16=self.dtype == torch.float16 or self.dtype == torch.half,
+                    dtype=self.dtype,
+                    vsize=self.vsize
                 )
             elif self.algo == "sparse":
                 output = torch.matmul(factor, output)

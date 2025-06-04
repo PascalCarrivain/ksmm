@@ -11,7 +11,8 @@ torch::Tensor kernel(
     const int b,
     const int c,
     const int d,
-    bool fp16);
+    const char* dtype,
+    int vsize);
 
 // C++ interface
 
@@ -29,7 +30,8 @@ torch::Tensor forward(
     const int b,
     const int c,
     const int d,
-    bool fp16)
+    const char* dtype,
+    int vsize)
 {
   CHECK_INPUT(input);
   CHECK_INPUT(factor);
@@ -39,10 +41,12 @@ torch::Tensor forward(
   assert(factor.size(0) == input.size(bs_last ? 0 : 1));
   assert(b == factor.size(1));
 
-  return kernel(input, factor, bs_last, a, b, c, d, fp16);
+  return kernel(input, factor, bs_last, a, b, c, d, dtype, vsize);
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
   m.def("forward", &forward, "Kernel for the forward pass with a Kronecker-sparse matrix (CUDA)");
 }
+
+// Force rebuild dummy comment

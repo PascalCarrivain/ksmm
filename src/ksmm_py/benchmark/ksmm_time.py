@@ -37,6 +37,7 @@ def get_args():
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cpu")
     parser.add_argument("--precision", choices=["fp16", "fp32"], default="fp32")
     parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--vsize", type=int, default=4)
 
     # Check correctness
     parser.add_argument("--correctness", action="store_true")
@@ -57,13 +58,13 @@ def save_results(args, m, device_name):
     if os.path.exists(args.saving_csv):
         # Load existing data
         df = pd.read_csv(args.saving_csv)
-        expected_columns = ["pattern", "batch-size", "algo", "bs_position", "precision", "device_name", "mean", "median", "iqr", "times"]
+        expected_columns = ["pattern", "batch-size", "algo", "bs_position", "precision", "vsize", "device_name", "mean", "median", "iqr", "times"]
         for col in expected_columns:
             if col not in df.columns:
                 raise ValueError(f"Column {col} not found in the CSV file. Please provide a valid CSV file.")
     else:
         # Define the columns of the DataFrame
-        df = pd.DataFrame(columns=["pattern", "batch-size", "algo", "bs_position", "precision", "device_name", "mean", "median", "iqr", "times"])
+        df = pd.DataFrame(columns=["pattern", "batch-size", "algo", "bs_position", "precision", "vsize", "device_name", "mean", "median", "iqr", "times"])
 
     # Define the new entry
     bs_position ="bs_last" if args.bs_last else "bs_first"
@@ -75,6 +76,7 @@ def save_results(args, m, device_name):
                 "algo": args.algo,
                 "bs_position": bs_position,
                 "precision": args.precision,
+                "vsize": args.vsize,
                 "device_name": device_name,
                 "mean": m.mean,
                 "median": m.median,
@@ -92,6 +94,7 @@ def save_results(args, m, device_name):
             (df["algo"] == args.algo) &
             (df["bs_position"] == bs_position) &
             (df["precision"] == args.precision) &
+            (df["vsize"] == args.precision) &
             (df["device_name"] == device_name)
         ]
     else:
@@ -102,7 +105,7 @@ def save_results(args, m, device_name):
         # Get the index of the existing row
         index = existing_row.index
         #Check there is only one measurement for this configuration
-        assert len(index) == 1, "The CSV file should not contain multiple rows with the same configuration (pattern, batch-size, algo, bs_position, precision, and device_name)."
+        assert len(index) == 1, "The CSV file should not contain multiple rows with the same configuration (pattern, batch-size, algo, bs_position, precision, vsize and device_name)."
 
         # Update the existing row in df with the values from results_df
         df.loc[index, results_df.columns] = results_df.iloc[0].values

@@ -112,6 +112,7 @@ def get_linear_layer(
     algo=None,
     dtype: torch.dtype = torch.float16,
     bs_last=False,
+    vsize=4,
     bias=False,
     weights=None,
     device: str = "cpu",
@@ -182,6 +183,7 @@ def get_linear_layer(
             algo=algo,
             dtype=dtype,
             bs_last=bs_last,
+            vsize=vsize,
             device=device,
         )
 
