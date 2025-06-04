@@ -1,17 +1,16 @@
 #!/bin/bash
 
-to_pytorch=../fkmd/layer/kronecker_sparse/;
+to_pytorch=../ksmm_py/layer/kronecker_sparse/;
 
-for f in kernel_bs_first_float4.out\
-	     kernel_bs_first_half2.out\
-	     kernel_bs_last_float4.out\
-	     kernel_bs_last_half2.out;
+for f in kernel_bs_first_float.out\
+	     kernel_bs_last_float.out\
+	     kernel_bs_first_half.out\
+	     kernel_bs_last_half.out;
 do
-    python3 print_best.py -n tuning/${f};
+    python3 generate_best_from_fine_tuning.py -n tuning/${f};
     tmp=$(echo ${f} | sed s/".out"//);
-    echo ${tmp}".cuh";
-    cp tuning/${tmp}".cuh" ${to_pytorch};
+    # echo ${tmp}".cuh";
+    # cp tuning/${tmp}".cuh" ${to_pytorch};
+    echo ${tmp}".best";
+    cp tuning/${tmp}".best" ${to_pytorch};
 done;
-
-# cp src/template_kernels_half2.cuh ${to_pytorch};
-# cp src/template_kernels_float4.cuh ${to_pytorch};

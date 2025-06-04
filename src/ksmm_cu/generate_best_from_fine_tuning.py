@@ -10,12 +10,6 @@ import sys
 import time
 
 
-a = [1, 2, 3, 4, 5, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128]
-b = [48, 64, 80, 96, 128, 192, 256, 384, 512, 640, 768, 1024]
-c = [48, 64, 96, 128, 160, 192, 256, 320, 384, 512, 640, 768, 1024]
-d = [1, 2, 3, 4, 5, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128]
-
-
 def main(argv):
 
     parser = argparse.ArgumentParser()
@@ -23,112 +17,197 @@ def main(argv):
     args = parser.parse_args()
     name = args.n
 
-    if 'float4' in name:
-        fp = 'float4'
-    if 'half2' in name:
-        fp = 'half2'
-    index = -1
-    if 'kernel0' in name:
-        index = 0
-    if 'kernel1' in name:
-        index = 1
+    if 'float' in name:
+        dtype = np.dtype('float32')
+        precision = 'float'
+    if 'half' in name:
+        dtype = np.dtype('float16')
+        precision = 'half'
     if 'bs_first' in name:
         bs_last = 0
     if 'bs_last' in name:
         bs_last = 1
-    vtype = fp.replace('float4', 'float').replace('half2', 'half')
 
     fname = name.replace('.out', '.cuh')
-    kname = name.replace('tuning/', '').replace('_factor0', '').replace('_factor1', '').replace('.out', '')
+    kname = name.replace('tuning/', '').replace('.out', '')
+
+    with open(name.replace('.out', '.best'), 'w') as best_out:
+        best_out.write("batch_size a b c d TILEX TILEK TILEY TX TY VSIZE ms std mse\n")
 
     with open(fname, "w") as out_file:
         out_file.write("// -*- c -*-\n\n")
         out_file.write("#ifndef {0:s}\n".format(kname.upper()))
         out_file.write("#define {0:s}\n\n".format(kname.upper()))
-        out_file.write('#include "template_kernels_{0:s}.cuh"\n\n'.format(fp))
-        # out_file.write("template <const int TILEX, const int TILEK, const int TILEY, const int TX, const int TY>\n")
-        # # out_file.write("__global__ __launch_bounds__(xNTHREADS_FLOAT4x) void {0:s}(\n".format(kname))
-        # out_file.write("__global__ void {0:s}(\n".format(kname))
-        # out_file.write("{0:s} *input, {0:s} *values, const int output_size, const int batch_size,\n".format(vtype))
-        # out_file.write("const int input_size, {0:s} *output, const int {1:s});\n\n".format(vtype, 'a' if index == 0 else 'd'))
-        out_file.write("void best_{0:s}({1:s} *input, {1:s} *values, {1:s} *output, int batch_size, int a, int b, int c, int d, dim3 &blockGrid, dim3 &threadsPerBlock){{\n".format(kname, vtype))
+        out_file.write('#include "template_kernels_{0:s}.cuh"\n\n'.format(precision))
+        out_file.write("void best_{0:s}({1:s} *input, {1:s} *values, {1:s} *output, int batch_size, int a, int b, int c, int d, dim3 &blockGrid, dim3 &threadsPerBlock){{\n".format(kname, precision))
         out_file.write("\twhile (1) {\n")
         out_file.write("\t\tthreadsPerBlock.y = 1;\n")
 
-    with open(name, "r") as in_file:
-        # batch_size a b c d TILEX TILEK TILEY TX TY WX WY CUDA time (in ms) std mse
-        lines = in_file.readlines()
-        for i in a:
-            if "kernel1" in name and i > 1:
-                continue
-            for j in b:
-                for k in c:
-                    for l in d:
-                        if "kernel0" in name and l > 1:
+    # Read patterns.
+    patterns = []
+    with open("patterns.in", "r") as fpatterns:
+        lines = fpatterns.readlines()
+        for l in lines:
+            sl = l.split(',')
+            a, b, c, d, batch_size = int(sl[0]), int(sl[1]), int(sl[2]), int(sl[3]), int(sl[4])
+            patterns.append((a, b, c, d, batch_size))
+
+    for p in patterns:
+        a, b, c, d, batch_size = p
+        with open(name, "r") as in_file:
+            # batch_size a b c d TILEX TILEK TILEY TX TY VSIZE ms std mse
+            lines = in_file.readlines()
+            tmin = 1e9
+            std_min = 1e9
+            mse_min = 1e9
+            find_min = False
+            for line in lines:
+                sl = line.split()
+                if sl[0] == 'batch_size':
+                    continue
+                if (int(sl[0]) == batch_size
+                    and int(sl[1]) == a
+                    and int(sl[2]) == b
+                    and int(sl[3]) == c
+                    and int(sl[4]) == d):
+                    if float(sl[11]) < tmin:
+                        TILEX = int(sl[5])
+                        TILEK = int(sl[6])
+                        TILEY = int(sl[7])
+                        TX = int(sl[8])
+                        TY = int(sl[9])
+                        VSIZE = int(sl[10])
+                        tmin = float(sl[11])
+                        std_min = float(sl[12])
+                        mse_min = float(sl[13])
+                        find_min = True
+            if tmin != 0.0 and find_min:
+                with open(name.replace('.out', '.best'), 'a') as best_out:
+                    best_out.write(f"{batch_size} {a} {b} {c} {d} {TILEX} {TILEK} {TILEY} {TX} {TY} {VSIZE} {tmin} {std_min} {mse_min}" + "\n")
+                input_size = a * c * d
+                output_size = a * b * d
+                x = TILEX // TX
+                with open(
+                        fname, "a"
+                ) as out_file:
+                    out_file.write(
+                        "\t\tif (batch_size == {0:d} && a == {1:d} && b == {2:d} && c == {3:d} && d == {4:d}) {{\n".format(
+                            batch_size, a, b, c, d
+                        )
+                    )
+                    out_file.write(
+                        "\t\t\tthreadsPerBlock.x = {0:d};\n".format(
+                            (TILEX // TX) * (TILEY // TY)
+                        )
+                    )
+                    out_file.write(
+                        "\t\t\tblockGrid.x = {0:d};\n".format(
+                            (output_size + TILEX - 1) // TILEX
+                        )
+                    )
+                    out_file.write(
+                        "\t\t\tblockGrid.y = {0:d};\n".format(
+                            (batch_size + TILEY - 1) // TILEY
+                        )
+                    )
+                    if precision == 'half' and VSIZE == 4:
+                        out_file.write(
+                            "\t\t\t{0:s}4<{1:s}, {2:d}, {3:d}, {4:d}, {5:d}, {6:d}, {7:d}, false, {8:d}><<<blockGrid, threadsPerBlock>>>(input, values, {9:d}, output, {10:s}, {11:s}, {12:s}, {13:s});\n".format(
+                                kname, 'bool', TILEX, TILEK, TILEY, TX, TY, VSIZE, x, batch_size, 'a', 'b', 'c', 'd'
+                            )
+                        )
+                    elif precision == 'half' and VSIZE == 2:
+                        out_file.write(
+                            "\t\t\t{0:s}2<{1:s}, {2:d}, {3:d}, {4:d}, {5:d}, {6:d}, {7:d}, true, {8:d}><<<blockGrid, threadsPerBlock>>>(input, values, {9:d}, output, {10:s}, {11:s}, {12:s}, {13:s});\n".format(
+                                kname, precision + str(VSIZE), TILEX, TILEK, TILEY, TX, TY, VSIZE, x, batch_size, 'a', 'b', 'c', 'd'
+                            )
+                        )
+                    else:
+                        out_file.write(
+                            "\t\t\t{0:s}<{1:s}, {2:d}, {3:d}, {4:d}, {5:d}, {6:d}, {7:d}, true, {8:d}><<<blockGrid, threadsPerBlock>>>(input, values, {9:d}, output, {10:s}, {11:s}, {12:s}, {13:s});\n".format(
+                                kname, precision + str(VSIZE), TILEX, TILEK, TILEY, TX, TY, VSIZE, x, batch_size, 'a', 'b', 'c', 'd'
+                            )
+                        )
+                    out_file.write("\t\t\tbreak;\n")
+                    out_file.write("\t\t}\n")
+
+
+    # Default
+    with open(
+            fname, "a"
+    ) as out_file:
+        VSIZE = 4
+        tmp = [128, 64]
+        for TILEY in tmp:
+            for yy in [4, 3, 2, 1]:
+                TY = yy * VSIZE
+                if TILEY % TY != 0:
+                    continue
+                y = TILEY // TY
+                for TILEX in tmp:
+                    for xx in [4, 3, 2, 1]:
+                        TX = xx * VSIZE
+                        if TILEX % TX != 0:
                             continue
-                        for batch_size in [196, 25088]:
-                            tmin = 1e9
-                            find_min = False
-                            offset = 1
-                            for line in lines:
-                                sl = line.split()
-                                if sl[0] == 'batch_size':
-                                    continue
-                                if (
-                                    int(sl[0]) == batch_size
-                                    and int(sl[1]) == i
-                                    and int(sl[2]) == j
-                                    and int(sl[3]) == k
-                                    and int(sl[4]) == l
-                                ):
-                                    if float(sl[13 - offset]) < tmin:
-                                        TILEX = int(sl[6 - offset])
-                                        TILEK = int(sl[7 - offset])
-                                        TILEY = int(sl[8 - offset])
-                                        TX = int(sl[9 - offset])
-                                        TY = int(sl[10 - offset])
-                                        tmin = float(sl[13 - offset])
-                                        find_min = True
-                            if tmin != 0.0 and find_min:
-                                input_size = i * k * l
-                                output_size = i * j * l
-                                with open(
-                                    fname, "a"
-                                ) as out_file:
-                                    out_file.write(
-                                        "\t\tif (batch_size == {0:d} && a == {1:d} && b == {2:d} && c == {3:d} && d == {4:d}) {{\n".format(
-                                            batch_size, i, j, k, l
-                                        )
+                        x = TILEX // TX
+                        if (x * y) > 1024:
+                            continue
+                        for k in range(16, 0, -1):
+                            TILEK = k * VSIZE
+                            if TILEK > 64:
+                                continue
+                            if TILEK > TILEX or TILEK > TILEY:
+                                continue
+                            if (VSIZE * x * y) % TILEX != 0:
+                                continue
+                            if (VSIZE * x * y) % TILEY != 0:
+                                continue
+                            stride_values = (VSIZE * x * y) // TILEX
+                            stride_input = (VSIZE * x * y) // TILEY
+                            if TILEK % stride_input != 0:
+                                continue
+                            if TILEK % stride_values != 0:
+                                continue
+                            smem = dtype.itemsize * 2 * (TILEY * TILEK + TILEK * TILEX)
+                            if smem >= 49152:
+                                continue
+                            # input_size = a * c * d
+                            # output_size = a * b * d
+                            out_file.write(
+                                "\t\tif ((batch_size % {2:d}) == 0 && b > {0:d} && ((b * d) % (d * {0:d})) == 0 && c > {1:d} && ((c * d) % (d * {1:d})) == 0) {{\n".format(
+                                    TILEX, TILEK, TILEY
+                                )
+                            )
+                            out_file.write(
+                                "\t\t\tthreadsPerBlock.x = {0:d};\n".format(x * y)
+                            )
+                            out_file.write(
+                                "\t\t\tblockGrid.x = (a * b * d + {0:d} - 1) / {0:d};\n".format(TILEX)
+                            )
+                            out_file.write(
+                                "\t\t\tblockGrid.y = (batch_size + {0:d} - 1) / {0:d};\n".format(TILEY)
+                            )
+                            if precision == 'half' and VSIZE == 4:
+                                out_file.write(
+                                    "\t\t\t{0:s}4<{1:s}, {2:d}, {3:d}, {4:d}, {5:d}, {6:d}, {7:d}, false, {8:d}><<<blockGrid, threadsPerBlock>>>(input, values, {9:s}, output, {10:s}, {11:s}, {12:s}, {13:s});\n".format(
+                                        kname, 'bool', TILEX, TILEK, TILEY, TX, TY, VSIZE, x, 'batch_size', 'a', 'b', 'c', 'd'
                                     )
-                                    out_file.write(
-                                        "\t\t\tthreadsPerBlock.x = {0:d};\n".format(
-                                            (TILEX // TX) * (TILEY // TY)
-                                        )
+                                )
+                            if precision == 'half' and VSIZE == 2:
+                                out_file.write(
+                                    "\t\t\t{0:s}2<{1:s}, {2:d}, {3:d}, {4:d}, {5:d}, {6:d}, {7:d}, true, {8:d}><<<blockGrid, threadsPerBlock>>>(input, values, {9:s}, output, {10:s}, {11:s}, {12:s}, {13:s});\n".format(
+                                        kname, precision + str(VSIZE), TILEX, TILEK, TILEY, TX, TY, VSIZE, x, 'batch_size', 'a', 'b', 'c', 'd'
                                     )
-                                    out_file.write(
-                                        "\t\t\tblockGrid.x = {0:d};\n".format(
-                                            (output_size + TILEX - 1) // TILEX
-                                        )
+                                )
+                            else:
+                                out_file.write(
+                                    "\t\t\t{0:s}<{1:s}, {2:d}, {3:d}, {4:d}, {5:d}, {6:d}, {7:d}, true, {8:d}><<<blockGrid, threadsPerBlock>>>(input, values, {9:s}, output, {10:s}, {11:s}, {12:s}, {13:s});\n".format(
+                                        kname, precision + str(VSIZE), TILEX, TILEK, TILEY, TX, TY, VSIZE, x, 'batch_size', 'a', 'b', 'c', 'd'
                                     )
-                                    out_file.write(
-                                        "\t\t\tblockGrid.y = {0:d};\n".format(
-                                            (batch_size + TILEY - 1) // TILEY
-                                        )
-                                    )
-                                    if index == -1:
-                                        out_file.write(
-                                            "\t\t\t{5:s}<{0:d}, {1:d}, {2:d}, {3:d}, {4:d}><<<blockGrid, threadsPerBlock>>>(input, values, {6:d}, output, {7:s}, {8:s}, {9:s}, {10:s});\n".format(
-                                                TILEX, TILEK, TILEY, TX, TY, kname, batch_size, 'a', 'b', 'c', 'd'
-                                            )
-                                        )
-                                    else:
-                                        out_file.write(
-                                            "\t\t\t{5:s}<{0:d}, {1:d}, {2:d}, {3:d}, {4:d}><<<blockGrid, threadsPerBlock>>>(input, values, {6:d}, {7:d}, {8:d}, output, {9:s});\n".format(
-                                                TILEX, TILEK, TILEY, TX, TY, kname, output_size, batch_size, input_size, 'a' if index == 0 else 'd'
-                                            )
-                                        )
-                                    out_file.write("\t\t\tbreak;\n")
-                                    out_file.write("\t\t}\n")
+                                )
+                            out_file.write("\t\t\tbreak;\n")
+                            out_file.write("\t\t}\n")
+
 
     with open(fname, "a") as out_file:
         out_file.write("\t\tassert(1 == 0);\n")
