@@ -138,12 +138,6 @@ For a **long fine-tuning** on your own device:
 - `<kernel_name>`: One of the available kernel names listed above.
 - `<GPU_device_index>`: The index of your GPU device.
 
-For a **short fine-tuning**:
-
-```bash
-./short_run.sh
-```
-
 #### Fine-Tuning Output
 
 Fine-tuning scripts output results in the following format:
