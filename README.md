@@ -17,6 +17,7 @@ is replaced by a sequence of factors $K_\ell$, each following a prescribed spars
 - [Installation](#installation)
 - [Available Algorithms](#available-algorithms)
 - [Standalone CUDA Kernel (`ksmm_cu`)](#standalone-cuda-kernel-ksmm_cu)
+- [Standalone OpenCL Kernel](#standalone-opencl-kernel)
 - [Benchmark Reproduction](#benchmark-reproduction)
 - [References](#references)
 - [Citation](#citation)
@@ -204,6 +205,11 @@ These files are used to compile and run the code.
 
 The `long_run.sh` script includes several assertions to ensure the kernel functions correctly. For a given pattern `(a, b, c, d)`, some hyperparameter combinations may not pass these assertions.
 If you encounter issues, adjust the hyperparameters accordingly.
+
+## Standalone OpenCL Kernel
+
+The Python package [lazylinop](https://faustgrp.gitlabpages.inria.fr/lazylinop/index.html) provides OpenCL version of the kernel.
+The repository is available [here](https://gitlab.inria.fr/faustgrp/lazylinop).
 
 ---
 
